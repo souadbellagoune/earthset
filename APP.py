@@ -22,6 +22,18 @@ SITES = {
     "Chandrayaan-3 (near 69.4 S)": (32.32, -69.37),
     "Malapert massif (approx.)": (0.0, -85.9),
     "Near the south pole (illustrative, 89.5 S)": (0.0, -89.5),
+        "Shackleton rim (approx.)": (0.0, -89.9),
+    "Nobile (Artemis candidate, approx.)": (31.4, -85.4),
+    "Connecting Ridge (Artemis III candidate, approx.)": (222.7, -89.45),
+    "Mons Mouton (IM-2 target, approx.)": (29.2, -84.8),
+    "Apollo 12 (Oceanus Procellarum)": (336.58, -3.01),
+    "Apollo 14 (Fra Mauro)": (342.53, -3.65),
+    "Apollo 15 (Hadley-Apennine)": (3.63, 26.13),
+    "Apollo 16 (Descartes)": (15.50, -8.97),
+    "Chang'e-3 (Mare Imbrium)": (340.49, 44.12),
+    "Chang'e-5 (Oceanus Procellarum)": (308.08, 43.06),
+    "Chang'e-6 (Apollo basin)": (206.01, -41.64),
+    "SLIM (Marius Hills area)": (25.25, -13.32),
 }
 
 # Verdict thresholds: share of the window with the Sun / Earth usable.
