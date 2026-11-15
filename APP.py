@@ -15,17 +15,19 @@ st.set_page_config(page_title="Earthset: lunar landing site navigator", layout="
 
 # (east longitude in degrees, latitude in degrees). Coordinates are approximate
 # and must be checked against Quickmap or Moon Trek before they are cited.
+
 SITES = {
     "Apollo 11 (Mare Tranquillitatis)": (23.47, 0.67),
     "Apollo 17 (Taurus-Littrow)": (30.77, 20.19),
     "Chang'e-4 (Von Karman crater)": (177.59, -45.46),
     "Chandrayaan-3 (near 69.4 S)": (32.32, -69.37),
-    "Malapert massif (approx.)": (0.0, -85.9),
+    "Malapert massif (approx.)": (359.76, -85.98),
     "Near the south pole (illustrative, 89.5 S)": (0.0, -89.5),
-        "Shackleton rim (approx.)": (0.0, -89.9),
-    "Nobile (Artemis candidate, approx.)": (31.4, -85.4),
-    "Connecting Ridge (Artemis III candidate, approx.)": (222.7, -89.45),
-    "Mons Mouton (IM-2 target, approx.)": (29.2, -84.8),
+    "Shackleton crater (center, real floor is permanently shadowed)": (129.78, -89.67),
+    "Nobile crater (center)": (53.27, -85.28),
+    "Haworth (Artemis III candidate region, center)": (337.22, -86.76),
+    "Connecting Ridge (Artemis candidate region)": (222.5, -89.46),
+    "Odysseus / IM-1 (Malapert A, CLPS)": (1.44, -80.13),
     "Apollo 12 (Oceanus Procellarum)": (336.58, -3.01),
     "Apollo 14 (Fra Mauro)": (342.53, -3.65),
     "Apollo 15 (Hadley-Apennine)": (3.63, 26.13),
@@ -33,7 +35,7 @@ SITES = {
     "Chang'e-3 (Mare Imbrium)": (340.49, 44.12),
     "Chang'e-5 (Oceanus Procellarum)": (308.08, 43.06),
     "Chang'e-6 (Apollo basin)": (206.01, -41.64),
-    "SLIM (Marius Hills area)": (25.25, -13.32),
+    "SLIM (near Shioli crater)": (25.25, -13.32),
 }
 
 # Verdict thresholds: share of the window with the Sun / Earth usable.
