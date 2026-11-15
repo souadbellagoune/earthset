@@ -25,10 +25,14 @@ SITES = {
     "Near the south pole (illustrative, 89.5 S)": (0.0, -89.5),
 }
 
+# Verdict thresholds: share of the window with the Sun / Earth usable.
+# These are the team's own choice, not a NASA standard.
+GOOD, MEDIUM = 70.0, 30.0
+
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def fetch_track(body, lon, lat, start_iso, stop_iso):
-    """Hourly elevation (degrees) of a body seen from a point on the Moon."""
+    """Hourly azimuth and elevation (degrees) of a body seen from the Moon's surface."""
     loc = {"lon": lon, "lat": lat, "elevation": 0.0, "body": 301}
     epochs = {"start": start_iso, "stop": stop_iso, "step": "1h"}
     last = None
@@ -44,6 +48,15 @@ def fetch_track(body, lon, lat, start_iso, stop_iso):
             last = exc
             time.sleep(2 * (attempt + 1))
     raise RuntimeError(f"JPL Horizons did not answer: {last}")
+
+
+def get_window(lon, lat, start, days):
+    start_iso = start.strftime("%Y-%m-%d")
+    stop_iso = (start + timedelta(days=days)).strftime("%Y-%m-%d")
+    sun = fetch_track("10", lon, lat, start_iso, stop_iso)
+    earth = fetch_track("399", lon, lat, start_iso, stop_iso)
+    n = min(len(sun), len(earth))
+    return sun.iloc[:n].reset_index(drop=True), earth.iloc[:n].reset_index(drop=True)
 
 
 def longest_run(mask):
@@ -69,11 +82,29 @@ def countdown(mask, name, up_word, down_word):
     return f"{name} {word} in {h} h ({h / 24:.1f} days)"
 
 
+def metrics(sun, earth, min_sun, min_earth):
+    s = (sun["el"] > min_sun).to_numpy()
+    e = (earth["el"] > min_earth).to_numpy()
+    return {
+        "s": s, "e": e,
+        "sun": 100 * s.mean(), "earth": 100 * e.mean(), "both": 100 * (s & e).mean(),
+        "dark": longest_run(~s), "earth_out": longest_run(~e),
+    }
+
+
+def verdict(pct):
+    if pct >= GOOD:
+        return "🟢 Good"
+    if pct >= MEDIUM:
+        return "🟡 Medium"
+    return "🔴 Poor"
+
+
 st.title("Earthset: lunar landing site navigator")
 st.write(
     "Compare when the Sun and Earth are above the horizon at candidate landing "
     "sites. The Sun sets the power budget. Earth sets the direct-to-Earth "
-    "communication windows."
+    "communication windows. Pick sites, a landing date and a possible delay."
 )
 
 with st.sidebar:
@@ -83,8 +114,12 @@ with st.sidebar:
     c_lat = st.number_input("Latitude (deg, south negative)", -90.0, 90.0, 0.0, 0.1)
     c_lon = st.number_input("East longitude (deg)", 0.0, 360.0, 0.0, 0.1)
     use_custom = st.checkbox("Add the custom site")
-    start = st.date_input("Start date", value=date.today())
-    days = st.slider("Days", 1, 60, 30)
+    start = st.date_input("Landing date (start of the window)", value=date.today())
+    days = st.slider("Days in the window", 1, 60, 30)
+    delay = st.radio(
+        "What if the landing slips?", [0, 1, 3, 7], horizontal=True,
+        format_func=lambda d: "No delay" if d == 0 else f"+{d} days",
+    )
     min_sun = st.slider("Minimum Sun elevation for power (deg)", 0.0, 10.0, 0.0, 0.5)
     min_earth = st.slider("Minimum Earth elevation for comms (deg)", 0.0, 10.0, 0.0, 0.5)
 
@@ -95,40 +130,94 @@ if not sites:
     st.info("Choose at least one site in the sidebar.")
     st.stop()
 
-start_iso = start.strftime("%Y-%m-%d")
-stop_iso = (start + timedelta(days=days)).strftime("%Y-%m-%d")
-
-rows, tracks = [], {}
+data = {}
 for name, (lon, lat) in sites.items():
     try:
         with st.spinner(f"Asking JPL Horizons about {name}..."):
-            sun = fetch_track("10", lon, lat, start_iso, stop_iso)
-            earth = fetch_track("399", lon, lat, start_iso, stop_iso)
+            sun, earth = get_window(lon, lat, start, days)
+            m = metrics(sun, earth, min_sun, min_earth)
+            md = None
+            if delay:
+                sun_d, earth_d = get_window(lon, lat, start + timedelta(days=delay), days)
+                md = metrics(sun_d, earth_d, min_sun, min_earth)
     except RuntimeError as exc:
         st.error(f"{name}: {exc}. Wait a minute and reload the page.")
         continue
-    n = min(len(sun), len(earth))
-    sun, earth = sun.iloc[:n], earth.iloc[:n]
-    s = (sun["el"] > min_sun).to_numpy()
-    e = (earth["el"] > min_earth).to_numpy()
-    tracks[name] = (sun, earth, s, e)
-    rows.append({
-        "Site": name,
-        "Sun up (%)": round(100 * s.mean(), 1),
-        "Earth up (%)": round(100 * e.mean(), 1),
-        "Both up (%)": round(100 * (s & e).mean(), 1),
-        "Longest dark spell (h)": longest_run(~s),
-        "Longest Earth-out spell (h)": longest_run(~e),
-    })
+    data[name] = {"sun": sun, "earth": earth, "m": m, "md": md}
 
-if not rows:
+if not data:
     st.stop()
 
+# ---------- Site cards, side by side ----------
+st.subheader("Site cards")
+names = list(data)
+for i in range(0, len(names), 3):
+    group = names[i:i + 3]
+    cols = st.columns(len(group))
+    for col, name in zip(cols, group):
+        d = data[name]
+        m = d["m"]
+        with col, st.container(border=True):
+            st.markdown(f"**{name}**")
+            st.markdown(f"Solar power: {verdict(m['sun'])} ({m['sun']:.0f}% of the window)")
+            st.markdown(f"Earth link: {verdict(m['earth'])} ({m['earth']:.0f}%)")
+            st.markdown(f"Both at once: {verdict(m['both'])} ({m['both']:.0f}%)")
+            c1, c2 = st.columns(2)
+            c1.metric("Sun at start", f"{d['sun']['el'].iloc[0]:.1f}°")
+            c2.metric("Earth at start", f"{d['earth']['el'].iloc[0]:.1f}°")
+            st.caption(countdown(m["s"], "Power", "returns", "ends"))
+            st.caption(countdown(m["e"], "Earth link", "returns", "ends"))
+            if d["md"] is not None:
+                md = d["md"]
+                st.markdown(
+                    f"**If the landing slips {delay} days:** power {verdict(md['sun'])} "
+                    f"({md['sun']:.0f}%), Earth link {verdict(md['earth'])} "
+                    f"({md['earth']:.0f}%), both {verdict(md['both'])} ({md['both']:.0f}%)"
+                )
+
+with st.expander("How the verdicts are defined"):
+    st.write(
+        f"Each verdict uses the share of the window (hourly steps) when the Sun, "
+        f"Earth, or both are above the minimum elevation set in the sidebar. "
+        f"Good: {GOOD:.0f}% or more. Medium: {MEDIUM:.0f}% to {GOOD:.0f}%. "
+        f"Poor: under {MEDIUM:.0f}%. These thresholds are the team's own choice, "
+        f"not a NASA standard. Verdicts describe a smooth Moon with no terrain."
+    )
+
+# ---------- Tables ----------
 st.subheader("Comparison")
+rows = [{
+    "Site": n,
+    "Sun up (%)": round(d["m"]["sun"], 1),
+    "Earth up (%)": round(d["m"]["earth"], 1),
+    "Both up (%)": round(d["m"]["both"], 1),
+    "Longest dark spell (h)": d["m"]["dark"],
+    "Longest Earth-out spell (h)": d["m"]["earth_out"],
+} for n, d in data.items()]
 st.dataframe(pd.DataFrame(rows).set_index("Site"), width="stretch")
 
+if delay:
+    st.subheader(f"Effect of a {delay}-day delay")
+    rows = []
+    for n, d in data.items():
+        if d["md"] is None:
+            continue
+        rows.append({
+            "Site": n,
+            "Sun up now (%)": round(d["m"]["sun"], 1),
+            "Sun up delayed (%)": round(d["md"]["sun"], 1),
+            "Earth up now (%)": round(d["m"]["earth"], 1),
+            "Earth up delayed (%)": round(d["md"]["earth"], 1),
+            "Both now (%)": round(d["m"]["both"], 1),
+            "Both delayed (%)": round(d["md"]["both"], 1),
+        })
+    st.dataframe(pd.DataFrame(rows).set_index("Site"), width="stretch")
+
+# ---------- Elevation plots ----------
 st.subheader("Sun and Earth over the window")
-for name, (sun, earth, s, e) in tracks.items():
+for name, d in data.items():
+    sun, earth = d["sun"], d["earth"]
+    s, e = d["m"]["s"], d["m"]["e"]
     times = pd.to_datetime(sun["jd"], origin="julian", unit="D")
     fig, ax = plt.subplots(figsize=(11, 3.2))
     ax.plot(times, sun["el"], label="Sun", color="#e69f00")
@@ -145,15 +234,12 @@ for name, (sun, earth, s, e) in tracks.items():
     fig.autofmt_xdate()
     st.pyplot(fig)
     plt.close(fig)
-    c1, c2 = st.columns(2)
-    c1.write(countdown(s, "Power", "returns", "ends"))
-    c2.write(countdown(e, "Earth link", "returns", "ends"))
 
-
+# ---------- Sky view ----------
 st.subheader("Sky view at a chosen moment")
-pick = st.selectbox("Site", list(tracks))
-sun, earth, s, e = tracks[pick]
-hour = st.slider("Hours from the start date", 0, len(sun) - 1, 0)
+pick = st.selectbox("Site", list(data))
+sun, earth = data[pick]["sun"], data[pick]["earth"]
+hour = st.slider("Hours from the landing date", 0, len(sun) - 1, 0)
 when = pd.to_datetime(sun["jd"].iloc[hour], origin="julian", unit="D")
 fig, ax = plt.subplots(figsize=(11, 3.8))
 ax.scatter(sun["az"], sun["el"], s=6, color="#e69f00", alpha=0.35, label="Sun (whole window)")
