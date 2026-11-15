@@ -1,3 +1,8 @@
+# Earthset: lunar landing site navigator (NASA Space Apps Challenge 2026).
+# Code written with the assistance of Claude (Anthropic), an AI assistant,
+# under the direction of the team (Souad and Melissa).
+# Sun and Earth positions come from NASA JPL Horizons via the astroquery package.
+
 import time
 from datetime import date, timedelta
 
@@ -181,5 +186,6 @@ st.caption(
     "the Moon's surface, no terrain and no atmosphere. Real horizons at the south "
     "pole are shaped by mountains and crater walls, so treat 'up' as the "
     "smooth-sphere case. Site coordinates are approximate. Sources: JPL Horizons "
-    "(ssd.jpl.nasa.gov/horizons), Quickmap and Moon Trek for site coordinates."
+    "(ssd.jpl.nasa.gov/horizons), Quickmap and Moon Trek for site coordinates. "
+    "Code written with the assistance of Claude (Anthropic), an AI assistant."
 )
