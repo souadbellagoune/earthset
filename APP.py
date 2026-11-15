@@ -113,7 +113,11 @@ st.markdown(
 
 with st.sidebar:
     st.header("Scenario")
-    chosen = st.multiselect("Sites", list(SITES), default=list(SITES)[-2:])
+    chosen = st.multiselect("Sites", list(SITES), default=[
+    "Apollo 11 (Mare Tranquillitatis)",
+    "Malapert massif (approx.)",
+    "Near the south pole (illustrative, 89.5 S)",
+])
     st.caption("Custom site (optional)")
     c_lat = st.number_input("Latitude (deg, south negative)", -90.0, 90.0, 0.0, 0.1)
     c_lon = st.number_input("East longitude (deg)", 0.0, 360.0, 0.0, 0.1)
