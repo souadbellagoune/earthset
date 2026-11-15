@@ -1,5 +1,5 @@
 # Earthset: lunar landing site navigator (NASA Space Apps Challenge 2026).
-# Code written with the assistance of Claude (Anthropic), an AI assistant,
+
 # under the direction of the team (Souad and Melissa).
 # Sun and Earth positions come from NASA JPL Horizons via the astroquery package.
 
